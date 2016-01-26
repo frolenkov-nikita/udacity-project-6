@@ -23,7 +23,7 @@ Visualisation should show how baseball player are peforming depending on their h
 3. Sketch and ideas
 ========
 
-Initial ideas were concentrated in the sketch https://www.dropbox.com/s/tponbfcqbt4qi93/sketch-66460514.png?dl=0,
+Initial ideas were concentrated in the sketch https://dl.dropboxusercontent.com/u/1274349/sketch-66502801.png,
 which has following features:
 
 - bar charts for BA and HR, their special disposition allows to see BA, HR and their approx. sum at once
