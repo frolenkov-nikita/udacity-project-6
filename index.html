@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/1.8.0/d3-legend.js"></script>
+  <script src="/js/jquery-1.12.0.min.js"></script>
+  <script src="/js/jquery-ui.js"></script>
+  <script src="/js/jquery-ui-slider-pips.js"></script>
+  <link href="css/jquery-ui.css" rel="stylesheet" type="text/css">
+  <link href="css/jquery-ui.structure.css" rel="stylesheet" type="text/css">
+  <link href="css/jquery-ui-slider-pips.css" rel="stylesheet" type="text/css">
+  <link href="css/main.css" rel="stylesheet" type="text/css">
+
+  <script type="text/javascript">
+    function init(data) {
+    	// configuration
+	    var plotWidth = 800;
+	    var plotHeight = 600;
+	    var plotMargin = 50;
+	    var canvasWidth = 900;
+	    var canvasHeight = 600;
+	    var barMargin = 50;
+    	var HRColor = ['#3182bd', '#6baed6', '#9ecae1'];
+	   	var AVGColor = ['#637939', '#8ca252', '#b5cf6b'];
+	   	var initialHeight = [70, 73];
+	   	var initialWeight = [180, 190];
+
+
+	    function prepareData(data, weight, height) {
+	    	// convert string to integers
+	    	for (i=0; i < data.length; i++) {
+	    		data[i]['height'] = parseInt(data[i]['height']);
+	    		data[i]['weight'] = parseInt(data[i]['weight']);
+	    		data[i]['HR'] = parseInt(data[i]['HR']);
+	    		data[i]['avg'] = parseFloat(data[i]['avg']);
+	    	}
+	    	return data;
+	    }
+
+	    function getBarData(data, weightRange, heightRange) {
+			// filter data by weight & height ranges	    	
+	    	var newData = [];
+	    	data = data.filter(function(d) {
+	    		if (d.weight >= weightRange[0] && d.weight <= weightRange[1]
+	    			&& d.height >= heightRange[0] && d.height <= heightRange[1]) {
+	    			return true;
+	    		}
+	    		return false;
+	    	});
+	    	// group by handedness
+	    	var groupedByH = d3.nest().key(function(d) {return d.handedness;}).entries(data);
+	    	for (var i=0; i < groupedByH.length; i++) {
+	    		newData.push({
+	    			'handedness': groupedByH[i].key,
+	    			'HR': d3.mean(groupedByH[i].values, 
+	    				function(d) { return d.HR; }),
+	    			'avg': d3.mean(groupedByH[i].values, 
+	    				function(d) { return d.avg; })
+	    		});
+	    	}
+
+	   		return newData;
+	    }
+
+	    function drawBars(data, weightRange, heightRange) {
+	    	// create bars
+	    	data = getBarData(data, weightRange, heightRange);
+	    	var HRBars = chartGroup.selectAll('.hr-bar').data(data);
+    		var AVGBars = chartGroup.selectAll('.avg-bar').data(data);
+
+    		// HR
+    		HRBars.enter().append('svg:rect').attr({
+        		'class': 'hr-bar bar',
+        		width: xScale.rangeBand() - barMargin,
+        			x: function(d, i){
+            			// Pass in the index to the xScale
+            			return xScale(d.handedness);
+        			},
+        			y: function(d, i){
+            			return y0Scale(d.HR);
+			        },
+        			height: function(d, i){
+            			return (y0Scale(0) - y0Scale(d.HR));
+        			}
+    			}).style({
+        			fill: function(d, i){
+            			return HRColor[i];
+        			}
+    			})
+    		// AVG
+    		AVGBars.enter().append('svg:rect').attr({
+        		'class': 'avg-bar bar',
+        		width: xScale.rangeBand() - barMargin,
+        			x: function(d, i){
+            			// Pass in the index to the xScale
+            			return xScale(d.handedness) + barMargin;
+        			},
+        			y: function(d, i){
+            			return y1Scale(d.avg);
+			        },
+        			height: function(d, i){
+            			return (y1Scale(0) - y1Scale(d.avg));
+        			}
+    			}).style({
+        			fill: function(d, i){
+            			return AVGColor[i];
+        			}
+    			})
+	    }
+
+	    function updatePlot(data, weightRange, heightRange) {
+	    	// Update plot on slider change
+	    	data = getBarData(data, weightRange, heightRange);
+	    	// Setup groups
+    		var HRBars = chartGroup.selectAll('.hr-bar').data(data);
+    		var AVGBars = chartGroup.selectAll('.avg-bar').data(data);
+    		// warning box
+	    	var warning = d3.select("#warning");
+	    	// if there are no players with such wieght & height
+	    	// show warning, hide plot
+	    	if (data.length == 0) {
+	    		warning.style('visibility', 'visible');
+	    		d3.selectAll('.bar').style('visibility', 'hidden');
+	    		return;
+	    	}
+	    	else {
+	    		warning.style('visibility', 'hidden');
+	    		d3.selectAll('.bar').style('visibility', 'visible');
+	    	}
+    		
+	    	// Update HR
+    		HRBars.transition().attr({
+        		width: xScale.rangeBand() - barMargin,
+        		x: function(d,i){return xScale(d.handedness);},
+        		y: function(d,i){return y0Scale(d.HR);},
+        		height: function(d,i){
+            		return y0Scale(0) - y0Scale(d.HR);
+        		}
+   			});
+   			// Update Avg
+   			AVGBars.transition().attr({
+        		width: xScale.rangeBand() - barMargin,
+        		x: function(d,i){return xScale(d.handedness) + barMargin;},
+        		y: function(d,i){return y1Scale(d.avg);},
+        		height: function(d,i){
+            		return y1Scale(0) - y1Scale(d.avg);
+        		}
+   			});
+
+	    }
+
+	    function createLegend() {
+    		// create legend
+	    	var ordinalHR = d3.scale.ordinal()
+  				.domain(['L', 'R', 'B'])
+  				.range(HRColor);
+	  		var ordinalAVG = d3.scale.ordinal()
+	  			.domain(['L', 'R', 'B'])
+	  			.range(AVGColor);
+
+			svg.append("g")
+	  			.attr("class", "legendHR")
+	  			.attr("transform", "translate(" + (plotWidth) + ",20)");
+	  		svg.append("g")
+	  			.attr("class", "legendAVG")
+	  			.attr("transform", "translate(" + (plotWidth) + ",70)");
+
+			var legendHR = d3.legend.color()
+	  			.shapeWidth(30)
+	  			.orient('horizontal')
+	  			.scale(ordinalHR);
+	  		
+
+	  		var legendAVG = d3.legend.color()
+	  			.shapeWidth(30)
+	  			.orient('horizontal')
+	  			.scale(ordinalAVG);
+
+			svg.select(".legendHR")
+	  			.call(legendHR);
+	  		svg.select(".legendAVG")
+	  			.call(legendAVG);
+
+	  		svg.select(".legendHR .legendCells")
+	  			.append('text')
+	  			.text('HR')
+	  			.attr("transform", "translate(0,-5)");
+
+	  		svg.select(".legendAVG .legendCells")
+	  			.append('text')
+	  			.text('AVG')
+	  			.attr("transform", "translate(0,-5)");
+	    }
+
+	    function createControls(data) {
+	    	// create sliders for setting weight and height
+	    	var $weightSlider = $('#weight-slider');
+	    	var $heightSlider = $('#height-slider');
+			// event handler    	
+	    	function onSliderChange(event, ui) {
+	    		updatePlot(data, $weightSlider.slider("values"), $heightSlider.slider("values"));
+	    	}
+	    	// weight slider
+	    	$weightSlider.slider({
+	    		min: 160,
+	    		max: 240,
+	    		step: 10,
+	    		range: true,
+	    		change: onSliderChange,
+	    		values: initialWeight,
+	    	});
+	    	$weightSlider.slider('pips', 
+	    		{
+	    			first: 'label',
+	    			last: 'label',
+	    			rest: 'label',
+	    			step: 1,
+	    			labels: false,
+	    			prefix: "",
+	    			suffix: ""
+	    		});
+			$weightSlider.slider("float", 
+				{
+					handle: true,
+					pips: false,
+	        		labels: false,
+	        		prefix: "",
+	        		suffix: ""
+	        	});
+			// height slider
+	    	$heightSlider.slider(
+	    		{
+	    			min: d3.min(data, function(d) {return d.height}),
+	  				max: d3.max(data, function(d) {return d.height}),
+	    			step: 1,
+	    			range: true,
+	    			change: onSliderChange,
+	    			values: initialHeight,
+	    		});
+	    	$heightSlider.slider('pips', 
+	    		{
+	    			first: 'label',
+	    			last: 'label',
+	    			rest: 'label',
+	    			step: 1,
+	    			labels: false,
+	    			prefix: "",
+	    			suffix: ""
+	    		});
+	    	$heightSlider.slider("float", 
+				{
+					handle: true,
+					pips: false,
+	        		labels: false,
+	        		prefix: "",
+	        		suffix: ""
+	        	});
+	    }
+
+
+  		data = prepareData(data);
+  		$(function(){
+  			createControls(data);
+  		});
+  		// create graphic containers
+  		var svg = d3.select("#main")
+            .append("svg")
+              .attr("width", canvasWidth)
+              .attr("height", canvasHeight);
+        var chartGroup = svg.append('g');
+		var xAxisGroup = svg.append('g').attr('class','axis x');
+        
+		var y0AxisGroup = svg.append('g')
+							.attr('class','axis y0');
+		var y1AxisGroup = svg.append('g').attr('class','axis y1');
+		// set scales
+		xScale = d3.scale.ordinal().domain(['L', 'R', 'B'])
+        	.rangeRoundBands([plotMargin, plotWidth - plotMargin], 0.1);
+        y0Scale = d3.scale.linear().domain([0,
+        	d3.mean(data, function(d) {return d.HR}) * 3])
+        	.range([plotHeight - plotMargin, plotMargin]).nice();
+        y1Scale = d3.scale.linear().domain([
+            d3.min(data, function(d) {return d.avg}),
+            d3.max(data, function(d) {return d.avg})])
+        	.range([plotHeight - plotMargin, plotMargin]).nice();
+        // create axis
+        var xAxis = d3.svg.axis()
+        	.scale(xScale)
+        	.orient("bottom")
+        	.tickSize(6, 0);
+    	var y0Axis = d3.svg.axis()
+        	.scale(y0Scale)
+        	.orient("left")
+        	.outerTickSize(2);
+        var y1Axis = d3.svg.axis()
+        	.scale(y1Scale)
+	       	.orient("right")
+	       	.outerTickSize(2);
+	    // position axes on the plot
+    	xAxisGroup.transition().attr("transform","translate (" + [
+        	0, plotHeight - plotMargin] + ")").call(xAxis);
+    	y0AxisGroup.transition().attr("transform","translate (" + [
+        	plotMargin, 0 ] + ")").call(y0Axis);
+    	y1AxisGroup.transition().attr("transform","translate (" + [
+        	plotWidth - plotMargin, 0 ] + ")").call(y1Axis);
+    	// add labels
+    	// text label for the x axis
+    	svg.append("text")      
+        	.transition().attr("transform","translate (" + [plotWidth / 2, plotHeight] + ")")
+        	.style("text-anchor", "middle")
+        	.text("Handedness");
+        // text label for the y0 axis
+    	svg.append("text")      
+        	.transition().attr("transform","translate (" + [plotMargin / 2, plotHeight / 2] + "), rotate(-90)")
+        	.style("text-anchor", "middle")
+        	.text("HR");
+        // text label for the y1 axis
+    	svg.append("text")      
+        	.transition().attr("transform","translate (" + [plotWidth, plotHeight / 2] + "), rotate(-90)")
+        	.style("text-anchor", "middle")
+        	.text("AVG");
+    	// initially draw bars
+    	drawBars(data, initialWeight, initialHeight);
+    	// add legend
+    	createLegend();
+
+  	}
+  </script>
+  </head>
+  <body>
+  <script type="text/javascript">
+      d3.csv("baseball_data.csv", init);
+  </script>
+  	<h3>Baseball players home runs (HR) and batting average (AVG) by their width, height and handedness.</h1>
+  	<div id="main">
+  	</div>
+  	<div id="warning">There are no players with width & height selected. Please chose different values!</div>
+	<div id="controls">
+		<label for="weight-slider">Weight:</label>
+	    <div id="weight-slider"></div>
+	    <br/>
+	    <label for="height-slider">Height:</label>
+  	    <div id="height-slider"></div>
+	</div>
+
+  </body>
+  </html>

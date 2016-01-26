@@ -1,0 +1,54 @@
+#main {
+	width: 800px;
+}
+#controls {
+	width: 700px;
+	margin-left: 50px;
+}
+.bar {
+	opacity: 0.5;
+}
+.axis path,
+.axis line {
+    fill: black;
+    stroke: black;
+    shape-rendering: crispEdges;
+}
+
+.ui-widget-header {
+	background: #c7c7c7;
+}
+
+#weight-slider, #height-slider {
+	margin-top: 10px;
+}
+
+label {
+	margin-top: 10px;
+}
+
+.ui-slider-pips [class*=ui-slider-pip-selected] {
+  font-weight: bold;
+  color: black;
+}
+
+.ui-slider-pips .ui-slider-pip-selected-2 {
+  color: black;
+}
+
+.ui-slider-pips .ui-slider-pip-initial-2 {
+  color: black;
+  font-weight: normal;
+}
+
+#warning {
+	color: #ff7f0e;
+	margin-bottom: 10px;
+	width: 700px;
+	margin-left: 50px;
+	text-transform: uppercase;
+	visibility: hidden;
+}
+.cell .label {
+	visibility: hidden;	
+}
