@@ -49,6 +49,9 @@ label {
 	text-transform: uppercase;
 	visibility: hidden;
 }
-.cell .label {
-	visibility: hidden;	
+
+#info {
+	width: 700px;
+	text-align: center;
+	font-size: 120%;
 }

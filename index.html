@@ -16,12 +16,14 @@
     	// configuration
 	    var plotWidth = 800;
 	    var plotHeight = 600;
-	    var plotMargin = 50;
-	    var canvasWidth = 900;
+	    var plotMargin = 60;
+	    var canvasWidth = 1000;
 	    var canvasHeight = 600;
-	    var barMargin = 50;
+	    var barMargin = 60;
     	var HRColor = ['#3182bd', '#6baed6', '#9ecae1'];
+    	var HRColorMap = {'L': HRColor[0], 'R': HRColor[1], 'B': HRColor[2]};
 	   	var AVGColor = ['#637939', '#8ca252', '#b5cf6b'];
+	   	var AVGColorMap = {'L': AVGColor[0], 'R': AVGColor[1], 'B': AVGColor[2]};
 	   	var initialHeight = [70, 73];
 	   	var initialWeight = [180, 190];
 
@@ -37,9 +39,8 @@
 	    	return data;
 	    }
 
-	    function getBarData(data, weightRange, heightRange) {
-			// filter data by weight & height ranges	    	
-	    	var newData = [];
+	    function filterData(data, weightRange, heightRange) {
+	    	// filter data by weight & height ranges	    	
 	    	data = data.filter(function(d) {
 	    		if (d.weight >= weightRange[0] && d.weight <= weightRange[1]
 	    			&& d.height >= heightRange[0] && d.height <= heightRange[1]) {
@@ -47,8 +48,14 @@
 	    		}
 	    		return false;
 	    	});
+	    	return data;
+	    }
+
+	    function getBarData(data, weightRange, heightRange) {
+			var newData = [];
 	    	// group by handedness
-	    	var groupedByH = d3.nest().key(function(d) {return d.handedness;}).entries(data);
+	    	var groupedByH = d3.nest().key(function(d) {return d.handedness;})
+	    						.entries(filterData(data, weightRange, heightRange));
 	    	for (var i=0; i < groupedByH.length; i++) {
 	    		newData.push({
 	    			'handedness': groupedByH[i].key,
@@ -65,8 +72,8 @@
 	    function drawBars(data, weightRange, heightRange) {
 	    	// create bars
 	    	data = getBarData(data, weightRange, heightRange);
-	    	var HRBars = chartGroup.selectAll('.hr-bar').data(data);
-    		var AVGBars = chartGroup.selectAll('.avg-bar').data(data);
+	    	var HRBars = chartGroup.selectAll('.hr-bar').data(data, function(d) {return d.handedness;});
+    		var AVGBars = chartGroup.selectAll('.avg-bar').data(data, function(d) {return d.handedness;});
 
     		// HR
     		HRBars.enter().append('svg:rect').attr({
@@ -84,7 +91,7 @@
         			}
     			}).style({
         			fill: function(d, i){
-            			return HRColor[i];
+            			return HRColorMap[d.handedness];
         			}
     			})
     		// AVG
@@ -103,17 +110,25 @@
         			}
     			}).style({
         			fill: function(d, i){
-            			return AVGColor[i];
+            			return AVGColorMap[d.handedness];
         			}
     			})
 	    }
 
+	    function showInfo(data, weightRange, heightRange) {
+	    	// display total players
+	    	d3.select("#info").text("Total players: " 
+	    		+ filterData(data, weightRange, heightRange).length);
+	    }
+
 	    function updatePlot(data, weightRange, heightRange) {
+	    	// show aux. info
+	    	showInfo(data, weightRange, heightRange);
 	    	// Update plot on slider change
 	    	data = getBarData(data, weightRange, heightRange);
 	    	// Setup groups
-    		var HRBars = chartGroup.selectAll('.hr-bar').data(data);
-    		var AVGBars = chartGroup.selectAll('.avg-bar').data(data);
+    		var HRBars = chartGroup.selectAll('.hr-bar').data(data, function(d) {return d.handedness;});
+    		var AVGBars = chartGroup.selectAll('.avg-bar').data(data, function(d) {return d.handedness;});
     		// warning box
 	    	var warning = d3.select("#warning");
 	    	// if there are no players with such wieght & height
@@ -129,24 +144,24 @@
 	    	}
     		
 	    	// Update HR
-    		HRBars.transition().attr({
-        		width: xScale.rangeBand() - barMargin,
-        		x: function(d,i){return xScale(d.handedness);},
-        		y: function(d,i){return y0Scale(d.HR);},
-        		height: function(d,i){
-            		return y0Scale(0) - y0Scale(d.HR);
-        		}
-   			});
-   			// Update Avg
-   			AVGBars.transition().attr({
-        		width: xScale.rangeBand() - barMargin,
-        		x: function(d,i){return xScale(d.handedness) + barMargin;},
-        		y: function(d,i){return y1Scale(d.avg);},
-        		height: function(d,i){
-            		return y1Scale(0) - y1Scale(d.avg);
-        		}
-   			});
-
+    		HRBars.transition()
+    			.attr({
+	        		width: xScale.rangeBand() - barMargin,
+	        	//	x: function(d,i){console.log(d.handedness, xScale(d.handedness)); return xScale(d.handedness);},
+	        		y: function(d,i){return y0Scale(d.HR);},
+	        		height: function(d,i){
+	            		return y0Scale(0) - y0Scale(d.HR);
+	        		}
+    			});   			// Update Avg
+   			AVGBars.transition()
+   				.attr({
+	        		width: xScale.rangeBand() - barMargin,
+	   //     		x: function(d,i){return xScale(d.handedness) + barMargin;},
+	        		y: function(d,i){return y1Scale(d.avg);},
+	        		height: function(d,i){
+	            		return y1Scale(0) - y1Scale(d.avg);
+	        		}
+	   			});			
 	    }
 
 	    function createLegend() {
@@ -163,7 +178,7 @@
 	  			.attr("transform", "translate(" + (plotWidth) + ",20)");
 	  		svg.append("g")
 	  			.attr("class", "legendAVG")
-	  			.attr("transform", "translate(" + (plotWidth) + ",70)");
+	  			.attr("transform", "translate(" + (plotWidth) + ",80)");
 
 			var legendHR = d3.legend.color()
 	  			.shapeWidth(30)
@@ -183,12 +198,12 @@
 
 	  		svg.select(".legendHR .legendCells")
 	  			.append('text')
-	  			.text('HR')
+	  			.text('HR by handedness')
 	  			.attr("transform", "translate(0,-5)");
 
 	  		svg.select(".legendAVG .legendCells")
 	  			.append('text')
-	  			.text('AVG')
+	  			.text('AVG by handedness')
 	  			.attr("transform", "translate(0,-5)");
 	    }
 
@@ -321,6 +336,7 @@
         	.text("AVG");
     	// initially draw bars
     	drawBars(data, initialWeight, initialHeight);
+    	updatePlot(data, initialWeight, initialHeight);
     	// add legend
     	createLegend();
 
@@ -331,15 +347,16 @@
   <script type="text/javascript">
       d3.csv("baseball_data.csv", init);
   </script>
-  	<h3>Baseball players home runs (HR) and batting average (AVG) by their width, height and handedness.</h1>
+  	<h3>Baseball players home runs (HR) and batting (number of hits divided by at bats) average (AVG) by their weight, height and handedness.</h1>
   	<div id="main">
   	</div>
   	<div id="warning">There are no players with width & height selected. Please chose different values!</div>
+  	<div id="info"></div>
 	<div id="controls">
-		<label for="weight-slider">Weight:</label>
+		<label for="weight-slider">Weight (pounds):</label>
 	    <div id="weight-slider"></div>
 	    <br/>
-	    <label for="height-slider">Height:</label>
+	    <label for="height-slider">Height (inches):</label>
   	    <div id="height-slider"></div>
 	</div>
 
