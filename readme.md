@@ -1,35 +1,50 @@
-Project 6, Data Visualisation
+﻿Project 6, Data Visualization
 -----------
 
 1. Goals
 ==========
 
-The goal is to create explanatory visualisation of the provided dataset.
+The goal is to create explanatory visualization of the provided dataset.
 
 2. Dataset
 =========
 
 The data set contains 1,157 baseball players with following fields:
 
-- handedness (right or left handed)
+- handedness (right-,left- or both-handed)
 - height (in inches)
 - weight (in pounds)
 - batting average
 - home runs
 
-Visualisation should show how baseball player are peforming depending on their handedness, height and weight.
+Visualization should show how baseball player are performing depending on their handedness, height and weight.
 
 
 3. Sketch and ideas
 ========
 
-Initial ideas were concentrated in the sketch https://dl.dropboxusercontent.com/u/1274349/sketch-66502801.png,
-which has following features:
+Initial ideas were concentrated in the sketch https://dl.dropboxusercontent.com/u/1274349/sketch-66502801.png
 
-- bar charts for BA and HR, their special disposition allows to see BA, HR and their approx. sum at once
-- separate bars for left-handed, right-handed and both-handed players, color emphasizing might be used here
-- slider controls allow to adjust intervals of weight & height
-- small stats window displays total players of selected weight & height, average, maximum, minimum performance values
+Goals are:
+
+ 1) to keep accent on players performance (HR and BA) rather than on their physical parameters (weight, height, handedness)
+ 2) to keep information on one, readable, plot
+ 3) to have easy player's performance comparison by weight, height and handedness
+ 4) to show dependency between player's performance and physical parameters
+ 5) to center on a specific finding in the data
+ 6) to allow reader to explore the data
+
+ As I have only one plot and I need to show difference between groups I need to go with bar chart which
+is best for comparison between different groups. Scatter plot or line graph may work if I use few plots but on one plot they will make
+a lot of noise: many lines/dots overlapping each other.
+
+I need to show how 2 continuous (HR & BA) values depend from physical parameters on one plot, therefore there is no way I can display HR & BA on orthogonal axes, therefore two Y axes are required. X axis will be for the categorical parameter handedness which will group bars. Color differentiation between HR & BA bars will be used. Another option is to have second Y axis “mirrored”, I will use it if readers have complains about color differentiation. Bars are located vertically, as I want to have X values be located intuitively, from left to right: “left-handed”, “right-handed”, “both-handed”. 
+
+The possibility to see the influence of weight & height is hardly desired but there is no chance to somehow add this information on the plot and keep it readable,
+therefore weight & height should be somehow displayed outside of the plot. 
+Making them adjustable by a slider allows reader to explore the data.
+
+Two clickable links “Players with top HR” and “Players with top AVG” will show the reader a specific finding about which players have best performance.
 
 4. Feedback
 ========

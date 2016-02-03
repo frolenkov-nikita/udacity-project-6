@@ -20,13 +20,11 @@
 	    var canvasWidth = 1000;
 	    var canvasHeight = 600;
 	    var barMargin = 60;
-    	var HRColor = ['#3182bd', '#6baed6', '#9ecae1'];
-    	var HRColorMap = {'L': HRColor[0], 'R': HRColor[1], 'B': HRColor[2]};
-	   	var AVGColor = ['#637939', '#8ca252', '#b5cf6b'];
-	   	var AVGColorMap = {'L': AVGColor[0], 'R': AVGColor[1], 'B': AVGColor[2]};
+    	var HRColor = '#3182bd';
+	   	var AVGColor = '#637939';
 	   	var initialHeight = [70, 73];
 	   	var initialWeight = [180, 190];
-
+	   	var $weightSlider, $heightSlider;
 
 	    function prepareData(data, weight, height) {
 	    	// convert string to integers
@@ -35,6 +33,17 @@
 	    		data[i]['weight'] = parseInt(data[i]['weight']);
 	    		data[i]['HR'] = parseInt(data[i]['HR']);
 	    		data[i]['avg'] = parseFloat(data[i]['avg']);
+	    		switch(data[i]['handedness']) {
+				    case 'L':
+				        data[i]['handedness'] = "Left-Handed";
+				        break;
+				    case 'R':
+				        data[i]['handedness'] = "Right-Handed";
+				        break;
+				    case 'B':
+				        data[i]['handedness'] = "Both-Handed";
+				        break;
+				}
 	    	}
 	    	return data;
 	    }
@@ -89,11 +98,7 @@
         			height: function(d, i){
             			return (y0Scale(0) - y0Scale(d.HR));
         			}
-    			}).style({
-        			fill: function(d, i){
-            			return HRColorMap[d.handedness];
-        			}
-    			})
+    			}).style({fill: HRColor});
     		// AVG
     		AVGBars.enter().append('svg:rect').attr({
         		'class': 'avg-bar bar',
@@ -108,17 +113,51 @@
         			height: function(d, i){
             			return (y1Scale(0) - y1Scale(d.avg));
         			}
-    			}).style({
-        			fill: function(d, i){
-            			return AVGColorMap[d.handedness];
-        			}
-    			})
+    			}).style({fill: AVGColor})
 	    }
 
 	    function showInfo(data, weightRange, heightRange) {
 	    	// display total players
 	    	d3.select("#info").text("Total players: " 
 	    		+ filterData(data, weightRange, heightRange).length);
+	    }
+
+	    function showTopPlayersInfo(data, event) {   	
+	    	// show stats of the top players
+	    	var $el = $(event.target);		    	
+	    	var playersData = [];
+	    	$el.addClass('active');
+	    	$el.siblings('a').removeClass('active');
+	    	// loop through all possible weight-height combinations
+	    	for (var w=weightRange[0]; w<weightRange[1]; w+=10) {
+	    		for (var h=heightRange[0]; h<heightRange[1]; h++) {
+	    			var thisData = filterData(data, [w, w+10], [h, h+1]);
+	    			// gather mean stats within such groups
+	    			playersData.push(
+	    				{
+	    					'minWidth': w, 
+	    				 	'maxWidth': w + 10, 
+	    				 	'minHeight': h,
+	    				 	'maxHeight': h + 1,
+	    				 	'meanAVG': d3.mean(thisData, function(d) {return d.avg}),
+	    				 	'meanHR': d3.mean(thisData, function(d) {return d.HR}),
+	    				}
+	    			);
+	    		}	
+	    	}
+	    	
+	    	if ($el.hasClass('top-hr')) {
+	    		// get group with heighest HR
+	    		var top = playersData.sort(function(a, b){return d3.descending(a.meanHR, b.meanHR);})[0];
+	    	}
+	    	else {
+	    		// get group with heighes AVG
+	    		var top = playersData.sort(function(a, b){return d3.descending(a.meanHR, b.meanAVG);})[0];	
+	    	}
+	    	// set slider values, this will auto update the plot
+	    	$weightSlider.slider("values", [top['minWidth'], top['maxWidth']]);
+	    	$heightSlider.slider("values", [top['minHeight'], top['maxHeight']]);
+	    	return false;
 	    }
 
 	    function updatePlot(data, weightRange, heightRange) {
@@ -131,7 +170,7 @@
     		var AVGBars = chartGroup.selectAll('.avg-bar').data(data, function(d) {return d.handedness;});
     		// warning box
 	    	var warning = d3.select("#warning");
-	    	// if there are no players with such wieght & height
+	    	// if there are no players with such weight & height
 	    	// show warning, hide plot
 	    	if (data.length == 0) {
 	    		warning.style('visibility', 'visible');
@@ -147,16 +186,15 @@
     		HRBars.transition()
     			.attr({
 	        		width: xScale.rangeBand() - barMargin,
-	        	//	x: function(d,i){console.log(d.handedness, xScale(d.handedness)); return xScale(d.handedness);},
 	        		y: function(d,i){return y0Scale(d.HR);},
 	        		height: function(d,i){
 	            		return y0Scale(0) - y0Scale(d.HR);
 	        		}
-    			});   			// Update Avg
+    			});   			
+    		// Update Avg
    			AVGBars.transition()
    				.attr({
 	        		width: xScale.rangeBand() - barMargin,
-	   //     		x: function(d,i){return xScale(d.handedness) + barMargin;},
 	        		y: function(d,i){return y1Scale(d.avg);},
 	        		height: function(d,i){
 	            		return y1Scale(0) - y1Scale(d.avg);
@@ -166,59 +204,36 @@
 
 	    function createLegend() {
     		// create legend
-	    	var ordinalHR = d3.scale.ordinal()
-  				.domain(['L', 'R', 'B'])
-  				.range(HRColor);
-	  		var ordinalAVG = d3.scale.ordinal()
-	  			.domain(['L', 'R', 'B'])
-	  			.range(AVGColor);
+	    	var scale = d3.scale.ordinal()
+  				.domain(['HR', 'AVG'])
+  				.range([HRColor, AVGColor]);
 
 			svg.append("g")
-	  			.attr("class", "legendHR")
+	  			.attr("class", "legend")
 	  			.attr("transform", "translate(" + (plotWidth) + ",20)");
-	  		svg.append("g")
-	  			.attr("class", "legendAVG")
-	  			.attr("transform", "translate(" + (plotWidth) + ",80)");
 
-			var legendHR = d3.legend.color()
+			var legend = d3.legend.color()
 	  			.shapeWidth(30)
 	  			.orient('horizontal')
-	  			.scale(ordinalHR);
+	  			.scale(scale);
 	  		
-
-	  		var legendAVG = d3.legend.color()
-	  			.shapeWidth(30)
-	  			.orient('horizontal')
-	  			.scale(ordinalAVG);
-
-			svg.select(".legendHR")
-	  			.call(legendHR);
-	  		svg.select(".legendAVG")
-	  			.call(legendAVG);
-
-	  		svg.select(".legendHR .legendCells")
-	  			.append('text')
-	  			.text('HR by handedness')
-	  			.attr("transform", "translate(0,-5)");
-
-	  		svg.select(".legendAVG .legendCells")
-	  			.append('text')
-	  			.text('AVG by handedness')
-	  			.attr("transform", "translate(0,-5)");
+			svg.select(".legend")
+	  			.call(legend);
 	    }
 
 	    function createControls(data) {
 	    	// create sliders for setting weight and height
-	    	var $weightSlider = $('#weight-slider');
-	    	var $heightSlider = $('#height-slider');
+	    	$weightSlider = $('#weight-slider');
+	    	$heightSlider = $('#height-slider');
 			// event handler    	
 	    	function onSliderChange(event, ui) {
 	    		updatePlot(data, $weightSlider.slider("values"), $heightSlider.slider("values"));
 	    	}
+	
 	    	// weight slider
 	    	$weightSlider.slider({
-	    		min: 160,
-	    		max: 240,
+	    		min: weightRange[0],
+	    		max: weightRange[1],
 	    		step: 10,
 	    		range: true,
 	    		change: onSliderChange,
@@ -245,8 +260,8 @@
 			// height slider
 	    	$heightSlider.slider(
 	    		{
-	    			min: d3.min(data, function(d) {return d.height}),
-	  				max: d3.max(data, function(d) {return d.height}),
+	    			min: heightRange[0],
+	  				max: heightRange[1],
 	    			step: 1,
 	    			range: true,
 	    			change: onSliderChange,
@@ -272,10 +287,15 @@
 	        	});
 	    }
 
-
   		data = prepareData(data);
+  		var weightRange = [d3.min(data, function(d) {return d.weight}), 
+	    			       d3.max(data, function(d) {return d.weight})];
+	    var heightRange = [d3.min(data, function(d) {return d.height}), 
+	    				   d3.max(data, function(d) {return d.height})];
+
   		$(function(){
   			createControls(data);
+  			$('a.top-hr, a.top-avg').on('click', function(event) { showTopPlayersInfo(data, event) });
   		});
   		// create graphic containers
   		var svg = d3.select("#main")
@@ -289,10 +309,10 @@
 							.attr('class','axis y0');
 		var y1AxisGroup = svg.append('g').attr('class','axis y1');
 		// set scales
-		xScale = d3.scale.ordinal().domain(['L', 'R', 'B'])
+		xScale = d3.scale.ordinal().domain(['Left-Handed', 'Right-Handed', 'Both-Handed'])
         	.rangeRoundBands([plotMargin, plotWidth - plotMargin], 0.1);
         y0Scale = d3.scale.linear().domain([0,
-        	d3.mean(data, function(d) {return d.HR}) * 3])
+        	d3.mean(data, function(d) {return d.HR}) * 7])
         	.range([plotHeight - plotMargin, plotMargin]).nice();
         y1Scale = d3.scale.linear().domain([
             d3.min(data, function(d) {return d.avg}),
@@ -348,6 +368,9 @@
       d3.csv("baseball_data.csv", init);
   </script>
   	<h3>Baseball players home runs (HR) and batting (number of hits divided by at bats) average (AVG) by their weight, height and handedness.</h1>
+  	<div id="story-controls">
+  		<a href="#" class='top-hr'>Players with top HR</a> | <a href="#" class="top-avg">Players with top AVG</a>
+  	</div>
   	<div id="main">
   	</div>
   	<div id="warning">There are no players with width & height selected. Please chose different values!</div>

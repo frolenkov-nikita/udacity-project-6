@@ -41,6 +41,11 @@ label {
   font-weight: normal;
 }
 
+.ui-slider-pips .ui-slider-pip-initial-1 {
+  color: black;
+  font-weight: normal;
+}
+
 #warning {
 	color: #ff7f0e;
 	margin-bottom: 10px;
@@ -54,4 +59,12 @@ label {
 	width: 700px;
 	text-align: center;
 	font-size: 120%;
+}
+
+a.active {
+	font-weight: bold;
+}
+
+#story-controls {
+	margin-left: 300px;
 }
