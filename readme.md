@@ -44,7 +44,7 @@ The possibility to see the influence of weight & height is hardly desired but th
 therefore weight & height should be somehow displayed outside of the plot. 
 Making them adjustable by a slider allows reader to explore the data.
 
-Two clickable links “Players with top HR” and “Players with top AVG” will show the reader a specific finding about which players have best performance.
+Short text under main char with clickable links will explain important trends and would be like a martini glass.
 
 4. Feedback
 ========

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="http://d3js.org/d3.v3.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/1.8.0/d3-legend.js"></script>
   <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
   <script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
@@ -17,6 +17,11 @@
 	    var plotWidth = 800;
 	    var plotHeight = 600;
 	    var plotMargin = 60;
+	    var auxPlotWidth = 400;
+	    var auxPlotHeight = 300;
+	    var auxPlotMargin = 30;
+	    var auxCanvasWidth = 500;
+	    var auxCanvasHeight = 300;
 	    var canvasWidth = 1000;
 	    var canvasHeight = 600;
 	    var barMargin = 60;
@@ -121,53 +126,18 @@
 	    	d3.select("#info").text("Total players: " 
 	    		+ filterData(data, weightRange, heightRange).length);
 	    }
-
-	    function showTopPlayersInfo(data, event) {   	
-	    	// show stats of the top players
-	    	var $el = $(event.target);		    	
-	    	var playersData = [];
-	    	$el.addClass('active');
-	    	$el.siblings('a').removeClass('active');
-	    	// loop through all possible weight-height combinations
-	    	for (var w=weightRange[0]; w<weightRange[1]; w+=10) {
-	    		for (var h=heightRange[0]; h<heightRange[1]; h++) {
-	    			var thisData = filterData(data, [w, w+10], [h, h+1]);
-	    			// gather mean stats within such groups
-	    			playersData.push(
-	    				{
-	    					'minWidth': w, 
-	    				 	'maxWidth': w + 10, 
-	    				 	'minHeight': h,
-	    				 	'maxHeight': h + 1,
-	    				 	'meanAVG': d3.mean(thisData, function(d) {return d.avg}),
-	    				 	'meanHR': d3.mean(thisData, function(d) {return d.HR}),
-	    				}
-	    			);
-	    		}	
-	    	}
-	    	
-	    	if ($el.hasClass('top-hr')) {
-	    		// get group with heighest HR
-	    		var top = playersData.sort(function(a, b){return d3.descending(a.meanHR, b.meanHR);})[0];
-	    	}
-	    	else {
-	    		// get group with heighes AVG
-	    		var top = playersData.sort(function(a, b){return d3.descending(a.meanHR, b.meanAVG);})[0];	
-	    	}
-	    	// set slider values, this will auto update the plot
-	    	$weightSlider.slider("values", [top['minWidth'], top['maxWidth']]);
-	    	$heightSlider.slider("values", [top['minHeight'], top['maxHeight']]);
-	    	return false;
-	    }
+   
 
 	    function updatePlot(data, weightRange, heightRange) {
 	    	// show aux. info
 	    	showInfo(data, weightRange, heightRange);
 	    	// Update plot on slider change
 	    	data = getBarData(data, weightRange, heightRange);
+
 	    	// Setup groups
     		var HRBars = chartGroup.selectAll('.hr-bar').data(data, function(d) {return d.handedness;});
     		var AVGBars = chartGroup.selectAll('.avg-bar').data(data, function(d) {return d.handedness;});
+
     		// warning box
 	    	var warning = d3.select("#warning");
 	    	// if there are no players with such weight & height
@@ -181,25 +151,50 @@
 	    		warning.style('visibility', 'hidden');
 	    		d3.selectAll('.bar').style('visibility', 'visible');
 	    	}
-    		
 	    	// Update HR
-    		HRBars.transition()
+	    	HRBars.exit().transition().attr(
+	    		{
+	    			y: function(d,i){return y0Scale(0);},
+	        		height: function(d,i){
+	            		return 0;
+	            	}
+	        	}).remove();
+    		HRBars.enter().append('svg:rect');
+			HRBars.transition()
     			.attr({
 	        		width: xScale.rangeBand() - barMargin,
+	        		'class': 'hr-bar bar',
+	        		x: function(d, i){
+            			// Pass in the index to the xScale
+            			return xScale(d.handedness);
+        			},
 	        		y: function(d,i){return y0Scale(d.HR);},
 	        		height: function(d,i){
 	            		return y0Scale(0) - y0Scale(d.HR);
 	        		}
-    			});   			
+    			}).style({fill: HRColor})    		   			
     		// Update Avg
+    		AVGBars.exit().transition().attr({
+    				y: function(d,i){return y1Scale(0);},
+	        		height: function(d,i){
+	            		return 0;
+	        		}
+    			}).remove();	
+   			AVGBars.enter().append('svg:rect');
    			AVGBars.transition()
    				.attr({
+   					'class': 'avg-bar bar',
 	        		width: xScale.rangeBand() - barMargin,
+	        		x: function(d, i){
+            			// Pass in the index to the xScale
+            			return xScale(d.handedness) + barMargin;
+        			},
 	        		y: function(d,i){return y1Scale(d.avg);},
 	        		height: function(d,i){
 	            		return y1Scale(0) - y1Scale(d.avg);
 	        		}
-	   			});			
+	   			}).style({fill: AVGColor})
+	   				
 	    }
 
 	    function createLegend() {
@@ -219,7 +214,7 @@
 	  		
 			svg.select(".legend")
 	  			.call(legend);
-	    }
+	      } 
 
 	    function createControls(data) {
 	    	// create sliders for setting weight and height
@@ -285,6 +280,16 @@
 	        		prefix: "",
 	        		suffix: ""
 	        	});
+
+	    	$('.story-link').click(function(){
+	    		// update plot on story link click
+	    		var $this = $(this);
+	    		$weightSlider.slider("values",
+	    		 	[$(this).data('weight-min'), $(this).data('weight-max')]);
+	    		$heightSlider.slider("values",
+	    		 	[$(this).data('height-min'), $(this).data('height-max')]);
+	    		return false;
+	    	});
 	    }
 
   		data = prepareData(data);
@@ -295,8 +300,8 @@
 
   		$(function(){
   			createControls(data);
-  			$('a.top-hr, a.top-avg').on('click', function(event) { showTopPlayersInfo(data, event) });
   		});
+
   		// create graphic containers
   		var svg = d3.select("#main")
             .append("svg")
@@ -368,8 +373,15 @@
       d3.csv("baseball_data.csv", init);
   </script>
   	<h3>Baseball players home runs (HR) and batting (number of hits divided by at bats) average (AVG) by their weight, height and handedness.</h1>
-  	<div id="story-controls">
-  		<a href="#" class='top-hr'>Players with top HR</a> | <a href="#" class="top-avg">Players with top AVG</a>
+  	<div id="story">
+	  	Please note that left-handed and right-handed
+	  	<a href="#" class="story-link" data-height-min="65" data-height-max="80" data-weight-min="140" data-weight-max="160">players with low weight</a> have better AVG and doing a bit less home runs comparing
+	  	to the <a href="#" class="story-link" data-height-min="65" data-height-max="80" data-weight-min="210" data-weight-max="240">players with higher weight</a>.
+	  	Also <a href="#" class="story-link" data-height-min="65" data-height-max="69" data-weight-min="140" data-weight-max="240">players with low height</a> 
+	  	has better AVG comparing to 
+	  	<a href="#" class="story-link" data-height-min="76" data-height-max="80" data-weight-min="140" data-weight-max="240">tall players</a>. Noticeable that both-handed
+	  	<a href="#" class="story-link" data-height-min="76" data-height-max="80" data-weight-min="140" data-weight-max="240">tall players</a> and <a href="#" class="story-link" data-height-min="65" data-height-max="80" data-weight-min="210" data-weight-max="240">players with higher weight</a> perform better than left- and right- handed players of the same height group.
+
   	</div>
   	<div id="main">
   	</div>
